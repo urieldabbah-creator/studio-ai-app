@@ -1,6 +1,8 @@
-import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 void main() {
   runApp(const DisenoIApp());
@@ -38,14 +40,51 @@ class _PantallaStudioModernaState extends State<PantallaStudioModerna> {
   final TextEditingController _promptController = TextEditingController();
   bool _cargandoIA = false;
   String _modoSeleccionado = 'Editar con IA';
+  
+  XFile? _imagenSeleccionada;
+  Uint8List? _bytesImagenWeb;
 
   // Dirección oficial de tu servidor backend en Render
   final String _urlBackend = 'https://studio-ai-backend-wnge.onrender.com/editar-con-ia-real/';
+
+  Future<void> _seleccionarImagen() async {
+    try {
+      setState(() => _cargandoIA = true);
+
+      // Carga una imagen de prueba directamente por red para saltar las restricciones de archivos en la web de Appetize
+      var respuesta = await http.get(Uri.parse('https://picsum.photos/600/600'));
+      
+      if (respuesta.statusCode == 200) {
+        setState(() {
+          _bytesImagenWeb = respuesta.bodyBytes;
+          _imagenSeleccionada = XFile('imagen_prueba.jpg');
+          _cargandoIA = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('📸 ¡Imagen de prueba lista para la IA!')),
+        );
+      } else {
+        setState(() => _cargandoIA = false);
+      }
+    } catch (e) {
+      setState(() => _cargandoIA = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('⚠️ Error al cargar imagen: $e')),
+      );
+    }
+  }
 
   Future<void> _ejecutarIA() async {
     if (_promptController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('⚠️ Por favor escribe una instrucción para la IA')),
+      );
+      return;
+    }
+
+    if (_imagenSeleccionada == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⚠️ Por favor toca el cuadro para cargar una foto primero')),
       );
       return;
     }
@@ -56,13 +95,22 @@ class _PantallaStudioModernaState extends State<PantallaStudioModerna> {
       var request = http.MultipartRequest('POST', Uri.parse(_urlBackend));
       request.fields['prompt_usuario'] = _promptController.text;
       
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          utf8.encode('imagen_falsa_de_prueba'),
-          filename: 'foto_prueba.jpg',
-        ),
-      );
+      if (kIsWeb && _bytesImagenWeb != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            _bytesImagenWeb!,
+            filename: 'foto_prueba.jpg',
+          ),
+        );
+      } else if (!kIsWeb && _imagenSeleccionada != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'file',
+            _imagenSeleccionada!.path,
+          ),
+        );
+      }
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
@@ -195,12 +243,10 @@ class _PantallaStudioModernaState extends State<PantallaStudioModerna> {
                 ),
               ),
               const SizedBox(height: 20),
+              
+              // Contenedor interactivo para cargar la foto de prueba web
               GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('📷 Imagen de prueba seleccionada correctamente')),
-                  );
-                },
+                onTap: _seleccionarImagen,
                 child: Container(
                   height: 280,
                   decoration: BoxDecoration(
@@ -215,29 +261,34 @@ class _PantallaStudioModernaState extends State<PantallaStudioModerna> {
                       ),
                     ],
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withOpacity(0.08),
-                          shape: BoxShape.circle,
+                  child: _bytesImagenWeb != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(22),
+                          child: Image.memory(_bytesImagenWeb!, fit: BoxFit.cover),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6366F1).withOpacity(0.08),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.add_a_photo_rounded, size: 36, color: Color(0xFF6366F1)),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Sube una foto o escanea un documento',
+                              style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Toca para cargar imagen de prueba en la web',
+                              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                            ),
+                          ],
                         ),
-                        child: const Icon(Icons.add_a_photo_rounded, size: 36, color: Color(0xFF6366F1)),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Sube una foto o escanea un documento',
-                        style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Toca para abrir la galería o la cámara',
-                        style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                      ),
-                    ],
-                  ),
                 ),
               ),
               const SizedBox(height: 20),
