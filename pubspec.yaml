@@ -1,0 +1,16 @@
+workflows:
+  ios-simulator-build:
+    name: iOS Simulator Build for Appetize
+    instance_type: mac_mini_m1
+    environment:
+      flutter: default
+      xcode: latest
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+      - name: Build iOS Simulator App
+        script: |
+          flutter build ios --simulator --debug
+    artifacts:
+      - build/ios/iphonesimulator/Runner.app
