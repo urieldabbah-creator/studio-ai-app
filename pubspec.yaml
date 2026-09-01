@@ -1,16 +1,20 @@
-workflows:
-  ios-simulator-build:
-    name: iOS Simulator Build for Appetize
-    instance_type: mac_mini_m1
-    environment:
-      flutter: default
-      xcode: latest
-    scripts:
-      - name: Get Flutter packages
-        script: |
-          flutter pub get
-      - name: Build iOS Simulator App
-        script: |
-          flutter build ios --simulator --debug
-    artifacts:
-      - build/ios/iphonesimulator/Runner.app
+name: studio_ai_app
+description: "A new Flutter project."
+publish_to: 'none' 
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
