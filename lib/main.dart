@@ -44,14 +44,11 @@ class _PantallaStudioModernaState extends State<PantallaStudioModerna> {
   XFile? _imagenSeleccionada;
   Uint8List? _bytesImagenWeb;
 
-  // Dirección oficial de tu servidor backend en Render
   final String _urlBackend = 'https://studio-ai-backend-wnge.onrender.com/editar-con-ia-real/';
 
   Future<void> _seleccionarImagen() async {
     try {
       setState(() => _cargandoIA = true);
-
-      // Carga una imagen de prueba directamente por red para saltar las restricciones de archivos en la web de Appetize
       var respuesta = await http.get(Uri.parse('https://picsum.photos/600/600'));
       
       if (respuesta.statusCode == 200) {
@@ -118,18 +115,24 @@ class _PantallaStudioModernaState extends State<PantallaStudioModerna> {
       setState(() => _cargandoIA = false);
 
       if (response.statusCode == 200) {
+        // Enviamos los bytes devueltos por el servidor a la pantalla de resultado
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const PantallaResultado()),
+          MaterialPageRoute(
+            builder: (context) => PantallaResultado(imagenResultadoBytes: response.bodyBytes),
+          ),
         );
       } else {
         throw Exception('Error en el servidor');
       }
     } catch (e) {
       setState(() => _cargandoIA = false);
+      // Si ocurre un error de red pero quieres ver la interfaz con la imagen original como respaldo:
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const PantallaResultado()),
+        MaterialPageRoute(
+          builder: (context) => PantallaResultado(imagenResultadoBytes: _bytesImagenWeb),
+        ),
       );
     }
   }
@@ -243,8 +246,6 @@ class _PantallaStudioModernaState extends State<PantallaStudioModerna> {
                 ),
               ),
               const SizedBox(height: 20),
-              
-              // Contenedor interactivo para cargar la foto de prueba web
               GestureDetector(
                 onTap: _seleccionarImagen,
                 child: Container(
@@ -379,7 +380,9 @@ class _PantallaStudioModernaState extends State<PantallaStudioModerna> {
 }
 
 class PantallaResultado extends StatelessWidget {
-  const PantallaResultado({super.key});
+  final Uint8List? imagenResultadoBytes;
+
+  const PantallaResultado({super.key, this.imagenResultadoBytes});
 
   @override
   Widget build(BuildContext context) {
@@ -402,16 +405,21 @@ class PantallaResultado extends StatelessWidget {
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: Colors.deepPurple.shade100, width: 2),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.check_circle_rounded, size: 60, color: Color(0xFF6366F1)),
-                  SizedBox(height: 12),
-                  Text(
-                    '¡Procesado por tu Servidor!',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                  ),
-                ],
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: imagenResultadoBytes != null
+                    ? Image.memory(imagenResultadoBytes!, fit: BoxFit.cover)
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.check_circle_rounded, size: 60, color: Color(0xFF6366F1)),
+                          SizedBox(height: 12),
+                          Text(
+                            '¡Procesado por tu Servidor!',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                          ),
+                        ],
+                      ),
               ),
             ),
             const SizedBox(height: 24),
