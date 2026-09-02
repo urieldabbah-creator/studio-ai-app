@@ -135,7 +135,7 @@ class _PantallaStudioModernaState extends State<PantallaStudioModerna> {
               child: _bytesImagenWeb != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(16),
-                      image: Image.memory(_bytesImagenWeb!, fit: BoxFit.cover),
+                      child: Image.memory(_bytesImagenWeb!, fit: BoxFit.cover),
                     )
                   : const Center(
                       child: Text('Sin imagen cargada'),
